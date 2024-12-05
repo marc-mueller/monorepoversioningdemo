@@ -71,7 +71,8 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-$commitMessages = $logOutput -split "(?=commit\s[0-9a-f]{40})" | Where-Object { $_ -ne "" }
+$commitMessages = @($logOutput -split "(?=commit\s[0-9a-f]{40})" | Where-Object { $_ -ne "" })
+$commitMessages = $commitMessages[-1..-($commitMessages.Count)]
 
 if (-not $commitMessages) {
     if ($VerboseOutput) {
