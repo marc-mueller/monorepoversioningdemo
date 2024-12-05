@@ -61,13 +61,13 @@ function Report-AllVersions {
 function TestCase-InitialCommits {
     Write-Host "Running Test Case: Initial Commits"
     @(
-        @{ Component = "ComponentA"; Message = "Initial commit for ComponentA +semver: minor"; ExpectedVersion = "ComponentA-v0.1.0" },
-        @{ Component = "ComponentB"; Message = "Initial commit for ComponentB +semver: minor"; ExpectedVersion = "ComponentB-v0.1.0" },
-        @{ Component = "ComponentC"; Message = "Initial commit for ComponentC"; ExpectedVersion = "ComponentC-v0.0.1" }
+        @{ Component = "ComponentA"; Message = "Initial commit for ComponentA +semver: minor"; ExpectedVersion = "0.1.0" },
+        @{ Component = "ComponentB"; Message = "Initial commit for ComponentB +semver: minor"; ExpectedVersion = "0.1.0" },
+        @{ Component = "ComponentC"; Message = "Initial commit for ComponentC"; ExpectedVersion = "0.0.1" }
     ) | ForEach-Object {
         $filePath = Modify-ComponentFile -Component $_.Component -Content $_.Message
         Commit-Changes -FilePaths $filePath -CommitMessage $_.Message
-        $version = Get-ComponentVersion -Component $_.Component -CreateTag $true
+        $version = Get-ComponentVersion -Component $_.Component -CreateTag $false
         Write-Host "Component:        $($_.Component)"
         Write-Host "Expected Version: $($_.ExpectedVersion)"
         Write-Host "Actual Version:   $version"
@@ -79,12 +79,12 @@ function TestCase-InitialCommits {
 function TestCase-ComponentUpdates {
     Write-Host "Running Test Case: Component Updates"
     @(
-        @{ Component = "ComponentA"; Message = "Feature added to ComponentA +semver: minor"; ExpectedVersion = "ComponentA-v0.2.0" },
-        @{ Component = "ComponentB"; Message = "Bug fix in ComponentB +semver: patch"; ExpectedVersion = "ComponentB-v0.1.1" }
+        @{ Component = "ComponentA"; Message = "Feature added to ComponentA +semver: minor"; ExpectedVersion = "0.2.0" },
+        @{ Component = "ComponentB"; Message = "Bug fix in ComponentB +semver: patch"; ExpectedVersion = "0.1.1" }
     ) | ForEach-Object {
         $filePath = Modify-ComponentFile -Component $_.Component -Content $_.Message
         Commit-Changes -FilePaths $filePath -CommitMessage $_.Message
-        $version = Get-ComponentVersion -Component $_.Component -CreateTag $true
+        $version = Get-ComponentVersion -Component $_.Component -CreateTag $false
         Write-Host "Component:        $($_.Component)"
         Write-Host "Expected Version: $($_.ExpectedVersion)"
         Write-Host "Actual Version:   $version"
@@ -106,7 +106,7 @@ function TestCase-MultiComponentCommit {
 
     # Get and display versions for both components
     @("ComponentA", "ComponentB") | ForEach-Object {
-        $version = Get-ComponentVersion -Component $_ -CreateTag $true
+        $version = Get-ComponentVersion -Component $_ -CreateTag $false
         Write-Host "Component:        $_"
         Write-Host "Actual Version:   $version"
         Write-Host ""
@@ -134,7 +134,7 @@ function TestCase-GlobalUpdate {
     Commit-Changes -FilePaths $filePaths -CommitMessage "Global update affecting all components +semver: major"
 
     @("ComponentA", "ComponentB", "ComponentC") | ForEach-Object {
-        $version = Get-ComponentVersion -Component $_ -CreateTag $true
+        $version = Get-ComponentVersion -Component $_ -CreateTag $false
         Write-Host "Component:        $_"
         Write-Host "Actual Version:   $version"
         Write-Host ""

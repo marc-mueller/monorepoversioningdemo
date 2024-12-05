@@ -37,7 +37,19 @@ function Parse-VersionFromTag {
 git fetch --tags 2>&1 | Out-Null
 
 # Get the latest tag for the component
-$latestTag = git tag --list "$ComponentName-v*" | Sort-Object -Descending | Select-Object -First 1
+$latestTag = git tag --list "$ComponentName-v*" | 
+    ForEach-Object {
+        if ($_ -match "$ComponentName-v(\d+)\.(\d+)\.(\d+)") {
+            # Extract the version parts for sorting
+            [PSCustomObject]@{
+                Tag     = $_
+                Major   = [int]$matches[1]
+                Minor   = [int]$matches[2]
+                Patch   = [int]$matches[3]
+            }
+        }
+    } | Sort-Object -Property Major, Minor, Patch -Descending |
+    Select-Object -First 1
 
 if (-not $latestTag) {
     if ($VerboseOutput) {
@@ -53,13 +65,13 @@ if (-not $latestTag) {
 }
 
 # Get commit messages affecting the component's directory since the baseline commit
-$logOutput = git log "$baselineCommit..HEAD" -- $ComponentName --pretty=format:"%B" 2>&1
+$logOutput = git log "$baselineCommit..HEAD" -- $ComponentName --pretty=format:"%B" | Out-String
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to retrieve git log. Ensure the component path and git history are valid."
     exit 1
 }
 
-$commitMessages = $logOutput -split "(\r?\n){2,}" | Where-Object { $_.Trim() -ne "" }
+$commitMessages = $logOutput -split "(?=commit\s[0-9a-f]{40})" | Where-Object { $_ -ne "" }
 
 if (-not $commitMessages) {
     if ($VerboseOutput) {
