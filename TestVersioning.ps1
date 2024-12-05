@@ -1,5 +1,5 @@
 # Define the path to the versioning script
-$versioningScriptPath = "C:\Temp\MonorepoVersioning\VersionComponent.ps1"
+$versioningScriptPath = Join-Path -Path $PSScriptRoot -ChildPath "VersionComponent.ps1"
 
 # Initialize a new Git repository
 git init TestRepo5
@@ -12,76 +12,142 @@ git commit -m "Initial commit"
 # Create component directories
 @("ComponentA", "ComponentB", "ComponentC") | ForEach-Object { New-Item -ItemType Directory -Name $_ }
 
-# Function to perform a commit and run the versioning script
-function Commit-And-Version {
+# Helper method to modify files in a component
+function Modify-ComponentFile {
     param (
         [string]$Component,
-        [string]$Message,
-        [string]$ExpectedVersion
+        [string]$Content
     )
-
-    # Create or modify a file in the component directory
     $filePath = Join-Path $Component "file.txt"
-    Add-Content -Path $filePath -Value $Message
+    Add-Content -Path $filePath -Value $Content
+    return $filePath
+}
 
-    # Stage and commit the change
-    git add $filePath
-    git commit -m "$Message"
+# Helper method to commit changes
+function Commit-Changes {
+    param (
+        [array]$FilePaths,
+        [string]$CommitMessage
+    )
+    git add $FilePaths
+    git commit -m "$CommitMessage"
+}
 
-    # Run the versioning script
-    $version = &$versioningScriptPath -ComponentName $Component -CreateTag $true
+# Helper method to get the current version of a component
+function Get-ComponentVersion {
+    param (
+        [string]$Component,
+        [bool]$CreateTag = $false
+    )
+    return &$versioningScriptPath -ComponentName $Component -CreateTag $CreateTag
+}
 
-    # Retrieve the latest tag for the component
-    $latestTag = git tag --list "$Component-v*" | Sort-Object -Descending | Select-Object -First 1
+# Helper method to report the version of all components
+function Report-AllVersions {
+    param (
+        [array]$Components
+    )
+    foreach ($component in $Components) {
+        $version = Get-ComponentVersion -Component $component
+        $latestTag = git tag --list "$component-v*" | Sort-Object -Descending | Select-Object -First 1
+        Write-Host "Component:        $component"
+        Write-Host "Current Version:  $version"
+        Write-Host "Latest Tag:       $latestTag"
+        Write-Host ""
+    }
+}
 
-    # Display the current and expected versions
-    Write-Host "Component:        $Component"
-    Write-Host "Expected Version: $ExpectedVersion"
+# Test Case 1: Initial commit for each component
+function TestCase-InitialCommits {
+    Write-Host "Running Test Case: Initial Commits"
+    @(
+        @{ Component = "ComponentA"; Message = "Initial commit for ComponentA +semver: minor"; ExpectedVersion = "ComponentA-v0.1.0" },
+        @{ Component = "ComponentB"; Message = "Initial commit for ComponentB +semver: minor"; ExpectedVersion = "ComponentB-v0.1.0" },
+        @{ Component = "ComponentC"; Message = "Initial commit for ComponentC"; ExpectedVersion = "ComponentC-v0.0.1" }
+    ) | ForEach-Object {
+        $filePath = Modify-ComponentFile -Component $_.Component -Content $_.Message
+        Commit-Changes -FilePaths $filePath -CommitMessage $_.Message
+        $version = Get-ComponentVersion -Component $_.Component -CreateTag $true
+        Write-Host "Component:        $($_.Component)"
+        Write-Host "Expected Version: $($_.ExpectedVersion)"
+        Write-Host "Actual Version:   $version"
+        Write-Host ""
+    }
+}
+
+# Test Case 2: Updates with specific version bumps
+function TestCase-ComponentUpdates {
+    Write-Host "Running Test Case: Component Updates"
+    @(
+        @{ Component = "ComponentA"; Message = "Feature added to ComponentA +semver: minor"; ExpectedVersion = "ComponentA-v0.2.0" },
+        @{ Component = "ComponentB"; Message = "Bug fix in ComponentB +semver: patch"; ExpectedVersion = "ComponentB-v0.1.1" }
+    ) | ForEach-Object {
+        $filePath = Modify-ComponentFile -Component $_.Component -Content $_.Message
+        Commit-Changes -FilePaths $filePath -CommitMessage $_.Message
+        $version = Get-ComponentVersion -Component $_.Component -CreateTag $true
+        Write-Host "Component:        $($_.Component)"
+        Write-Host "Expected Version: $($_.ExpectedVersion)"
+        Write-Host "Actual Version:   $version"
+        Write-Host ""
+    }
+}
+
+# Test Case 3: Shared commit affecting multiple components
+function TestCase-MultiComponentCommit {
+    Write-Host "Running Test Case: Multi-Component Commit"
+
+    # Modify files for both components and collect their paths
+    $fileA = Modify-ComponentFile -Component "ComponentA" -Content "Update affecting ComponentA"
+    $fileB = Modify-ComponentFile -Component "ComponentB" -Content "Update affecting ComponentB"
+    $filePaths = @($fileA, $fileB)
+
+    # Commit the changes with a shared message
+    Commit-Changes -FilePaths $filePaths -CommitMessage "Update affecting ComponentA and ComponentB +semver: minor"
+
+    # Get and display versions for both components
+    @("ComponentA", "ComponentB") | ForEach-Object {
+        $version = Get-ComponentVersion -Component $_ -CreateTag $true
+        Write-Host "Component:        $_"
+        Write-Host "Actual Version:   $version"
+        Write-Host ""
+    }
+}
+
+
+# Test Case 4: Non-versioned update
+function TestCase-NonVersionedUpdate {
+    Write-Host "Running Test Case: Non-Versioned Update"
+    $filePath = Modify-ComponentFile -Component "ComponentC" -Content "Non-versioned update to ComponentC"
+    Commit-Changes -FilePaths $filePath -CommitMessage "Non-versioned update to ComponentC"
+    $version = Get-ComponentVersion -Component "ComponentC" -CreateTag $true
+    Write-Host "Component:        ComponentC"
     Write-Host "Actual Version:   $version"
-    Write-Host "Latest tag:       $latestTag"
     Write-Host ""
 }
 
-# Test scenarios
-Commit-And-Version -Component "ComponentA" -Message "Initial commit for ComponentA +semver: minor" -ExpectedVersion "ComponentA-v0.1.0"
-Commit-And-Version -Component "ComponentB" -Message "Initial commit for ComponentB +semver: minor" -ExpectedVersion "ComponentB-v0.1.0"
-Commit-And-Version -Component "ComponentC" -Message "Initial commit for ComponentC" -ExpectedVersion "ComponentC-v0.0.1"
+# Test Case 5: Global commit affecting all components
+function TestCase-GlobalUpdate {
+    Write-Host "Running Test Case: Global Update"
+    $filePaths = @("ComponentA", "ComponentB", "ComponentC") | ForEach-Object {
+        Modify-ComponentFile -Component $_ -Content "Global update"
+    }
+    Commit-Changes -FilePaths $filePaths -CommitMessage "Global update affecting all components +semver: major"
 
-Commit-And-Version -Component "ComponentA" -Message "Feature added to ComponentA +semver: minor" -ExpectedVersion "ComponentA-v0.2.0"
-Commit-And-Version -Component "ComponentB" -Message "Bug fix in ComponentB +semver: patch" -ExpectedVersion "ComponentB-v0.1.1"
-
-# Commit affecting multiple components
-Add-Content -Path "ComponentA\file.txt" -Value "Update affecting ComponentA"
-Add-Content -Path "ComponentB\file.txt" -Value "Update affecting ComponentB"
-git add ComponentA\file.txt ComponentB\file.txt
-git commit -m "Update affecting ComponentA and ComponentB +semver: minor"
-$versionComponentA = & $versioningScriptPath -ComponentName "ComponentA" -CreateTag $true
-$versionComponentB = & $versioningScriptPath -ComponentName "ComponentB" -CreateTag $true
-Write-Host "Component: ComponentA"
-Write-Host "Expected Version: ComponentA-v0.3.0"
-Write-Host "Actual Version:   $($versionComponentA)"
-Write-Host "Latest Tag:       $(git tag --list 'ComponentA-v*' | Sort-Object -Descending | Select-Object -First 1)"
-Write-Host ""
-Write-Host "Component: ComponentB"
-Write-Host "Expected Version: ComponentB-v0.2.1"
-Write-Host "Actual Version:   $($versionComponentB)"
-Write-Host "Latest Tag:       $(git tag --list 'ComponentB-v*' | Sort-Object -Descending | Select-Object -First 1)"
-Write-Host ""
-
-# Commit without version tag
-Commit-And-Version -Component "ComponentC" -Message "Non-versioned update to ComponentC" -ExpectedVersion "ComponentC-v0.0.2"
-
-# Commit affecting all components
-@("ComponentA", "ComponentB", "ComponentC") | ForEach-Object {
-    Add-Content -Path "$_\file.txt" -Value "Global update"
-    git add "$_\file.txt"
+    @("ComponentA", "ComponentB", "ComponentC") | ForEach-Object {
+        $version = Get-ComponentVersion -Component $_ -CreateTag $true
+        Write-Host "Component:        $_"
+        Write-Host "Actual Version:   $version"
+        Write-Host ""
+    }
 }
-git commit -m "Global update affecting all components +semver: major"
-@("ComponentA", "ComponentB", "ComponentC") | ForEach-Object {
-    $actualVersion = & $versioningScriptPath -ComponentName $_ -CreateTag $true
-    Write-Host "Component:        $_"
-    Write-Host "Expected Version: $_-v1.0.0"
-    Write-Host "Actual Version:   $($actualVersion)"
-    Write-Host "Latest TAg:       $(git tag --list "$_-v*" | Sort-Object -Descending | Select-Object -First 1)"
-    Write-Host ""
-}
+
+# Run test cases
+TestCase-InitialCommits
+TestCase-ComponentUpdates
+TestCase-MultiComponentCommit
+TestCase-NonVersionedUpdate
+TestCase-GlobalUpdate
+
+# Report final versions of all components
+Write-Host "Final Versions of All Components"
+Report-AllVersions -Components @("ComponentA", "ComponentB", "ComponentC")
