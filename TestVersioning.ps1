@@ -87,6 +87,37 @@ function Run-Tests {
     Validate-Version -ComponentName "ComponentA" -ExpectedVersion "1.0.0"
     Validate-Version -ComponentName "ComponentB" -ExpectedVersion "1.0.0"
     Validate-Version -ComponentName "ComponentC" -ExpectedVersion "1.0.0"
+
+    # Step 6: Feature branch versioning
+    git checkout -b feature/myfeature
+    Commit-Changes -CommitMessage "Feature branch commit for component A +semver: minor" -Components @("ComponentA")
+    Validate-Version -ComponentName "ComponentA" -ExpectedVersion "1.1.0-myfeature0001"
+
+    # Step 7: Hotfix branch versioning
+    git checkout main
+    git checkout -b hotfix/myhotfix
+    Commit-Changes -CommitMessage "Hotfix branch commit for component B +semver: patch" -Components @("ComponentB")
+    Validate-Version -ComponentName "ComponentB" -ExpectedVersion "1.0.1-myhotfix0001"
+    Commit-Changes -CommitMessage "Change 1" -Components @("ComponentB")
+    Commit-Changes -CommitMessage "Change 2" -Components @("ComponentB")
+    Validate-Version -ComponentName "ComponentB" -ExpectedVersion "1.0.1-myhotfix0003"
+
+    # Step 8: Pull request branch versioning
+    # git checkout main
+    # git checkout -b pull/mypullrequest
+    # Commit-Changes -CommitMessage "Pull request branch commit for component C +semver: minor" -Components @("ComponentC")
+    # Validate-Version -ComponentName "ComponentC" -ExpectedVersion "1.1.0-mypullrequ0001"
+
+    # Step 9: Additional test cases for feature branch versioning
+    git checkout main
+    git checkout -b feature/anotherfeature
+    Commit-Changes -CommitMessage "Another feature branch commit for component A +semver: patch" -Components @("ComponentA")
+    Validate-Version -ComponentName "ComponentA" -ExpectedVersion "1.0.1-anotherfea0001"
+
+    git checkout main
+    git checkout -b feature/yetanotherfeature
+    Commit-Changes -CommitMessage "Yet another feature branch commit for component B +semver: minor" -Components @("ComponentB")
+    Validate-Version -ComponentName "ComponentB" -ExpectedVersion "1.1.0-yetanother0001"
 }
 
 # Main execution
