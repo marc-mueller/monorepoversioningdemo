@@ -61,7 +61,10 @@ function Get-CommitCount {
 
 # Function to get the highest semver+ increment definition in a branch
 function Get-HighestSemverIncrement {
-    param ($CommitMessages)
+    $branchName = Get-BranchName
+    $logOutput = git log "main..$branchName" -- $ComponentName --pretty=format:"%B" | Out-String
+    $commitMessages = @($logOutput -split "(?=commit\s[0-9a-f]{40})" | Where-Object { $_ -ne "" })
+    $commitMessages = $commitMessages[-1..-($commitMessages.Count)]
     $increments = $CommitMessages | ForEach-Object { Get-VersionIncrement $_ $null }
     $highestIncrement = $increments | Sort-Object -Property { switch ($_){ "major" {3} "minor" {2} "patch" {1} default {0} } } -Descending | Select-Object -First 1
     return $highestIncrement
@@ -161,7 +164,7 @@ function Calculate-Version {
 
     $commitMessages = @($logOutput -split "(?=commit\s[0-9a-f]{40})" | Where-Object { $_ -ne "" })
     $commitMessages = $commitMessages[-1..-($commitMessages.Count)]
-
+    
     if (-not $commitMessages) {
         if ($VerboseOutput) {
             Write-Host "No new commits affecting $ComponentName since the last tag."
@@ -176,8 +179,6 @@ function Calculate-Version {
     $newMinor = $version.Minor
     $newPatch = $version.Build
 
-    # Determine version increments
-    $highestIncrement = Get-HighestSemverIncrement $commitMessages
 
     foreach ($msg in $commitMessages) {
         $increment = Get-VersionIncrement $msg $DefaultIncrement
@@ -225,6 +226,9 @@ if ($branchName -match "^(feature|topic|task|hotfix)/") {
     $newPatch = $baseBranchVersion.Build
 
     $commitCount = Get-CommitCount
+
+    # Determine version increments
+    $highestIncrement = Get-HighestSemverIncrement
 
     switch ($highestIncrement) {
         "major" {
