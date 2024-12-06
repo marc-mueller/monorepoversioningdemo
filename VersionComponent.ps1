@@ -141,7 +141,9 @@ if ($branchName -match "^(feature|topic|task|hotfix)/") {
             $newPatch++
         }
     }
-    $preReleaseVersion = "$newMajor.$newMinor.$newPatch-$($branchName.Substring(0, [Math]::Min($branchName.Length, 8)))$commitCount"
+    $branchSuffix = $branchName -replace "^(feature|topic|task|hotfix)/", ""
+    $branchSuffix = $branchSuffix.Substring(0, [Math]::Min($branchSuffix.Length, 8))
+    $preReleaseVersion = "$newMajor.$newMinor.$newPatch-$branchSuffix$($commitCount.ToString("D4"))"
     Write-Output $preReleaseVersion
     exit 0
 } else {
