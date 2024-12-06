@@ -117,11 +117,11 @@ $commitCount = Get-CommitCount
 $highestIncrement = Get-HighestSemverIncrement $commitMessages
 
 if ($branchName -match "^(feature|topic|task|hotfix)/") {
-    switch ($branchName) {
-        "feature/*" { $DefaultIncrement = "minor" }
-        "topic/*" { $DefaultIncrement = "minor" }
-        "task/*" { $DefaultIncrement = "minor" }
-        "hotfix/*" { $DefaultIncrement = "patch" }
+    switch -regex ($branchName) {
+        "feature/.*" { $DefaultIncrement = "minor" }
+        "topic/.*" { $DefaultIncrement = "minor" }
+        "task/.*" { $DefaultIncrement = "minor" }
+        "hotfix/.*" { $DefaultIncrement = "patch" }
     }
     $increment = $highestIncrement
     if (-not $increment) {
