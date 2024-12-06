@@ -33,6 +33,29 @@ function Parse-VersionFromTag {
     }
 }
 
+# Function to get the branch name
+function Get-BranchName {
+    $branchName = git rev-parse --abbrev-ref HEAD
+    if ($branchName -eq "HEAD") {
+        $branchName = git name-rev --name-only HEAD
+    }
+    return $branchName
+}
+
+# Function to get the commit count in the branch
+function Get-CommitCount {
+    $commitCount = git rev-list --count HEAD
+    return $commitCount
+}
+
+# Function to get the highest semver+ increment definition in a branch
+function Get-HighestSemverIncrement {
+    param ($CommitMessages)
+    $increments = $CommitMessages | ForEach-Object { Get-VersionIncrement $_ $null }
+    $highestIncrement = $increments | Sort-Object -Property { switch ($_){ "major" {3} "minor" {2} "patch" {1} default {0} } } -Descending | Select-Object -First 1
+    return $highestIncrement
+}
+
 # Fetch the latest tags
 git fetch --tags 2>&1 | Out-Null
 
@@ -89,11 +112,20 @@ $newMinor = $version.Minor
 $newPatch = $version.Build
 
 # Determine version increments
-foreach ($msg in $commitMessages) {
-    $increment = Get-VersionIncrement $msg $DefaultIncrement
-    if ($VerboseOutput) {
-        Write-Host "Processing commit for $($ComponentName): $msg"
-        Write-Host "Increment parsed: $increment"
+$branchName = Get-BranchName
+$commitCount = Get-CommitCount
+$highestIncrement = Get-HighestSemverIncrement $commitMessages
+
+if ($branchName -match "^(feature|topic|task|hotfix)/") {
+    switch ($branchName) {
+        "feature/*" { $DefaultIncrement = "minor" }
+        "topic/*" { $DefaultIncrement = "minor" }
+        "task/*" { $DefaultIncrement = "minor" }
+        "hotfix/*" { $DefaultIncrement = "patch" }
+    }
+    $increment = $highestIncrement
+    if (-not $increment) {
+        $increment = $DefaultIncrement
     }
     switch ($increment) {
         "major" {
@@ -109,8 +141,32 @@ foreach ($msg in $commitMessages) {
             $newPatch++
         }
     }
+    $preReleaseVersion = "$newMajor.$newMinor.$newPatch-$($branchName.Substring(0, [Math]::Min($branchName.Length, 8)))$commitCount"
+    Write-Output $preReleaseVersion
+    exit 0
+} else {
+    foreach ($msg in $commitMessages) {
+        $increment = Get-VersionIncrement $msg $DefaultIncrement
+        if ($VerboseOutput) {
+            Write-Host "Processing commit for $($ComponentName): $msg"
+            Write-Host "Increment parsed: $increment"
+        }
+        switch ($increment) {
+            "major" {
+                $newMajor++
+                $newMinor = 0
+                $newPatch = 0
+            }
+            "minor" {
+                $newMinor++
+                $newPatch = 0
+            }
+            "patch" {
+                $newPatch++
+            }
+        }
+    }
 }
-
 
 # Create new version object
 $newVersion = [version]::new($newMajor, $newMinor, $newPatch)
