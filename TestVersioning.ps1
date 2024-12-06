@@ -104,6 +104,17 @@ function Run-Tests {
     git checkout -b pullrequest/mypullrequest
     Commit-Changes -CommitMessage "Pull request branch commit for component C +semver: minor" -Components @("ComponentC")
     Validate-Version -ComponentName "ComponentC" -ExpectedVersion "1.1.0-pullreq0001"
+
+    # Step 9: Additional test cases for feature branch versioning
+    git checkout main
+    git checkout -b feature/anotherfeature
+    Commit-Changes -CommitMessage "Another feature branch commit for component A +semver: patch" -Components @("ComponentA")
+    Validate-Version -ComponentName "ComponentA" -ExpectedVersion "1.1.1-feature0001"
+
+    git checkout main
+    git checkout -b feature/yetanotherfeature
+    Commit-Changes -CommitMessage "Yet another feature branch commit for component B +semver: minor" -Components @("ComponentB")
+    Validate-Version -ComponentName "ComponentB" -ExpectedVersion "1.1.0-feature0001"
 }
 
 # Main execution
