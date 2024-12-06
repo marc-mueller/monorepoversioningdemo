@@ -42,9 +42,17 @@ function Get-BranchName {
     return $branchName
 }
 
+# Function to get the baseline commit from the main branch
+function Get-BaselineCommit {
+    $branchName = Get-BranchName
+    $mergeBase = git merge-base main $branchName
+    return $mergeBase
+}
+
 # Function to get the commit count in the branch
 function Get-CommitCount {
-    $commitCount = git rev-list --count HEAD
+    $branchName = Get-BranchName
+    $commitCount = git rev-list --count $branchName ^main
     return $commitCount
 }
 
@@ -113,6 +121,7 @@ $newPatch = $version.Build
 
 # Determine version increments
 $branchName = Get-BranchName
+$baselineCommit = Get-BaselineCommit
 $commitCount = Get-CommitCount
 $highestIncrement = Get-HighestSemverIncrement $commitMessages
 
