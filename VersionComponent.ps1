@@ -230,21 +230,6 @@ if ($branchName -match "^(feature|topic|task|hotfix)/") {
     # Determine version increments
     $highestIncrement = Get-HighestSemverIncrement
 
-    switch ($highestIncrement) {
-        "major" {
-            $newMajor++
-            $newMinor = 0
-            $newPatch = 0
-        }
-        "minor" {
-            $newMinor++
-            $newPatch = 0
-        }
-        "patch" {
-            $newPatch++
-        }
-    }
-
     switch -regex ($branchName) {
         "feature/.*" { $DefaultIncrement = "minor" }
         "topic/.*" { $DefaultIncrement = "minor" }
